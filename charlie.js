@@ -1,5 +1,3 @@
-// api/charlie.js
-
 export default async function handler(req, res) {
   const targetUrl = req.query.url;
 
@@ -12,14 +10,13 @@ export default async function handler(req, res) {
       method: req.method,
       headers: {
         ...req.headers,
-        host: new URL(targetUrl).host, // penting untuk host forwarding
+        host: new URL(targetUrl).host,
       },
       body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
     });
 
     const data = await response.text();
 
-    // Tambahin CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', '*');
