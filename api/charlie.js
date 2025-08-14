@@ -1,59 +1,44 @@
-import { google } from "googleapis";
-
-const SPREADSHEET_ID = "1FCQIFncNOuOgJm6j0wephwgUjPXAUIXIvMXSgb6y7y4";
-const SHEET_NAME = "Sheet7";
-
-// Setup Google API auth client
-async function getSheetsClient() {
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    return google.sheets({ version: "v4", auth });
-  } catch (error) {
-    console.error("Error in getSheetsClient:", error);
-    throw error;
-  }
-}
-
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ status: "Error", message: "Method not allowed" });
+  if (req.method === 'OPTIONS') {
+    // Handle CORS preflight request
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    return res.status(204).end();
   }
 
   try {
-    const data = req.body;
+    const url = req.query.url;
 
-    if (!Array.isArray(data)) {
-      return res.status(400).json({ status: "Error", message: "Data harus berupa array" });
+    if (!url) {
+      return res.status(400).json({ error: 'Missing url parameter' });
     }
 
-    const sheets = await getSheetsClient();
+    const response = await fetch(url);
 
-    // Prepare rows untuk append
-    const rows = data.map((row) => [
-      row.id || "",
-      row.accName || "",
-      row.accHolder || "",
-      row.accNo || "",
-      row.bankGroup || "",
-    ]);
+    // Dapatkan content-type dalam lowercase
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
 
-    // Append rows ke sheet
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_NAME,
-      valueInputOption: "USER_ENTERED",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: {
-        values: rows,  // pastikan 'rows' lowercase
-      },
-    });
+    // Set header CORS untuk semua response
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
 
-    return res.status(200).json({ status: "Success" });
+    if (contentType.includes('application/json')) {
+      try {
+        const data = await response.json();
+        res.status(response.status).json(data);
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to parse JSON response' });
+      }
+    } else {
+      // Untuk selain JSON, kirim buffer mentahnya
+      const buffer = await response.arrayBuffer();
+      res.status(response.status);
+      res.setHeader('Content-Type', contentType);
+      res.send(Buffer.from(buffer));
+    }
   } catch (error) {
-    console.error("Error in handler:", error);
-    return res.status(500).json({ status: "Error", message: error.message });
+    res.status(500).json({ error: error.message || 'Unknown error' });
   }
 }
