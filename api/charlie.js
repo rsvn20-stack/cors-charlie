@@ -5,13 +5,16 @@ const SHEET_NAME = "Sheet7";
 
 // Setup Google API auth client
 async function getSheetsClient() {
-  // Gunakan credentials service account (pastikan sudah punya JSON key)
-  const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  return google.sheets({ version: "v4", auth });
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return google.sheets({ version: "v4", auth });
+  } catch (error) {
+    console.error("Error in getSheetsClient:", error);
+    throw error;
+  }
 }
 
 export default async function handler(req, res) {
@@ -44,12 +47,13 @@ export default async function handler(req, res) {
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
-        values: rows,
+        values: rows,  // pastikan 'rows' lowercase
       },
     });
 
     return res.status(200).json({ status: "Success" });
   } catch (error) {
+    console.error("Error in handler:", error);
     return res.status(500).json({ status: "Error", message: error.message });
   }
 }
